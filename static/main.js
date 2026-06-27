@@ -1,10 +1,9 @@
-/*
- * GLB viewer — flat / documentary rendering
- */
+// GLB viewer — flat / documentary rendering
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 
 // ─── Page elements ──────────────────────────────────────────────────────────
@@ -39,6 +38,12 @@ camera.position.set(3, 3, 3);               // start off to one side
 // evenly from all sides, so textures read clearly and nothing casts shadows —
 // the trade-off is no surface relief or highlights from lighting.
 scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+
+// Image-based lighting from a neutral "room". AmbientLight alone leaves metallic
+// PBR surfaces black (they have no diffuse response), so this gives them
+// something to reflect and keeps glossy models from rendering as a dark blob.
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
 
 // ─── Controls ───────────────────────────────────────────────────────────────
@@ -89,6 +94,7 @@ async function loadModel(file) {
 
     if (currentModel) removeModel(currentModel);   // clear the previous one first
     currentModel = gltf.scene;
+    currentModel.rotation.x = Math.PI; 
     scene.add(currentModel);
 
     frameObject(currentModel);
