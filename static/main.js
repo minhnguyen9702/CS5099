@@ -1,7 +1,5 @@
 // glb viewer
-
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ArcballControls } from 'three/addons/controls/ArcballControls.js';
@@ -23,7 +21,6 @@ const camera = new THREE.PerspectiveCamera(
   2000,
 );
 camera.up.set(0, 1, 0);
-camera.position.set(3, 3, 3);
 
 
 // lighting
@@ -113,3 +110,37 @@ renderer.setAnimationLoop(() => {
   controls.update();
   renderer.render(scene, camera);
 });
+
+let homeState = null
+
+window.addEventListener('keydown', (e) => {
+  if (e.repeat) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  if (e.key.toLowerCase() !== 'r') return;
+
+  if (e.shiftKey) homeState = getState()
+  else setState(homeState);
+});
+
+function getState() {
+  camera.updateMatrix();
+  controls._gizmos.updateMatrix();
+
+  return JSON.stringify({
+    arcballState: {
+      cameraFar: camera.far,
+      cameraFov: camera.fov,
+      cameraMatrix: camera.matrix,
+      cameraNear: camera.near,
+      cameraUp: camera.up,
+      cameraZoom: camera.zoom,
+      gizmoMatrix: controls._gizmos.matrix,
+      target: controls.target.toArray(),
+    },
+  });
+}
+
+function setState(json) {
+  controls.setStateFromJSON(json);
+}
