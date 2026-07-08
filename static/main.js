@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ArcballControls } from 'three/addons/controls/ArcballControls.js';
+import { initAnnotation } from './annotate.js';
 
 
 // renderer
@@ -144,3 +145,12 @@ function getState() {
 function setState(json) {
   controls.setStateFromJSON(json);
 }
+
+// lasso / polygon area annotation (see annotate.js)
+initAnnotation({
+  scene,
+  camera,
+  renderer,
+  controls,
+  getModel: () => currentModel,
+});
