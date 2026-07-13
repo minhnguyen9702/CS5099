@@ -1,4 +1,5 @@
 // Area annotation by outlining points on the model surface.
+import * as THREE from 'three';
 import { buildTriangleSoup, sliceLineOnSurface } from './surfaceline.js';
 
 export function initAnnotation({ scene, camera, renderer, controls, getModel }) {
@@ -16,7 +17,7 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel }) 
   let soup = null;
   let soupModel = null;
 
-  // in-progress outline
+  // functions tracking in-progress outline
   let points = [];
   let normals = [];
   let committedSegs = [];
@@ -25,8 +26,14 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel }) 
   let previewLine = null;
 
   const markerGeom = new THREE.SphereGeometry(1, 16, 12);
-  const markerMat = new THREE.MeshBasicMaterial({ color: 0x2563eb, depthTest: false });
-  const outlineMat = new THREE.LineBasicMaterial({ color: 0x2563eb, depthTest: false });
+
+  // While drawing an annotation, materials ignore depth
+  // on close materials are swapped to depth-tested materials 
+  // so that the model can occlude the finished annotation.
+  const editMarkerMaterials = new THREE.MeshBasicMaterial({ color: 0x2563eb, depthTest: false });
+  const editOutlineMaterials = new THREE.LineBasicMaterial({ color: 0x2563eb, depthTest: false });
+  const markerMaterials = new THREE.MeshBasicMaterial({ color: 0x2563eb });
+  const outlineMaterials = new THREE.LineBasicMaterial({ color: 0x2563eb });
 
   function raycastModel(event) {
     const model = getModel();
@@ -45,9 +52,6 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel }) 
       .transformDirection(hit.object.matrixWorld).normalize();
   }
 
-  function drapePoint(hit, n) {
-    return hit.point.clone().addScaledVector(n, modelRadius * 0.004);
-  }
 
   function computeModelRadius() {
     const box = new THREE.Box3().setFromObject(getModel());
@@ -71,7 +75,10 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel }) 
     avgN.normalize();
     const mid = from.clone().add(to).multiplyScalar(0.5);
     const viewpoint = mid.addScaledVector(avgN, from.distanceTo(to) || modelRadius * 0.1);
-    return sliceLineOnSurface(ensureSoup(), from, to, viewpoint);
+    const segs = sliceLineOnSurface(ensureSoup(), from, to, viewpoint);
+    // Once complete lift the finished annotation off of model's surface so that its visible.
+    for (const seg of segs) seg.addScaledVector(avgN, modelRadius * 0.0005);
+    return segs;
   }
 
   function startOutline() {
@@ -80,8 +87,8 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel }) 
     committedSegs = [];
     activeGroup = new THREE.Group();
     activeGroup.renderOrder = 999;
-    outlineSegs = new THREE.LineSegments(new THREE.BufferGeometry(), outlineMat);
-    previewLine = new THREE.Line(new THREE.BufferGeometry(), outlineMat);
+    outlineSegs = new THREE.LineSegments(new THREE.BufferGeometry(), editOutlineMaterials);
+    previewLine = new THREE.Line(new THREE.BufferGeometry(), editOutlineMaterials);
     outlineSegs.renderOrder = 999;
     previewLine.renderOrder = 999;
     outlineSegs.frustumCulled = false;
@@ -100,9 +107,9 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel }) 
   }
 
   function addMarker(dp) {
-    const m = new THREE.Mesh(markerGeom, markerMat);
+    const m = new THREE.Mesh(markerGeom, editMarkerMaterials);
     m.position.copy(dp);
-    m.scale.setScalar(modelRadius * 0.005);
+    m.scale.setScalar(modelRadius * 0.0005);
     m.renderOrder = 1000;
     activeGroup.add(m);
   }
@@ -111,12 +118,20 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel }) 
     const n = worldNormal(hit);
     points.push(hit.point.clone());
     normals.push(n);
-    addMarker(drapePoint(hit, n));
+    addMarker(points[points.length - 1]);
     if (points.length >= 2) {
       committedSegs.push(...sliceEdge(points.length - 2, points.length - 1));
       refreshOutline();
     }
     updatePreview(null);
+  }
+
+  function commitMaterials(group) {
+  // Swap a finished annotation to depth-tested materials so the model occludes it.
+    group.traverse((o) => {
+      if (o.isLineSegments) o.material = outlineMaterials;
+      else if (o.isMesh) o.material = markerMaterials;
+    });
   }
 
   function closeOutline() {
@@ -125,6 +140,7 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel }) 
     refreshOutline();
     updatePreview(null);
 
+    commitMaterials(activeGroup);
     annotations.push(activeGroup);
     activeGroup = null;
     startOutline(); // ready for the next annotation
