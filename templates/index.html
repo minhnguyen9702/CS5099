@@ -5,60 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>glb viewer</title>
-    <style>
-        html,
-        body {
-            margin: 0;
-            height: 100%;
-            overflow: hidden;
-        }
-
-        canvas {
-            display: block;
-        }
-
-        .toolbar {
-            position: absolute;
-            top: 16px;
-            left: 16px;
-            z-index: 1;
-            display: flex;
-            gap: 8px;
-        }
-
-        .btn {
-            font: 14px ui-sans-serif, system-ui, sans-serif;
-            padding: 9px 14px;
-            border-radius: 8px;
-            cursor: pointer;
-            border: 1px solid #3a3a3a;
-            background: #262626;
-            color: #eee;
-        }
-
-        .btn:hover {
-            border-color: #777;
-        }
-
-        .btn.active {
-            background: #2563eb;
-            border-color: #2563eb;
-        }
-
-        #hint {
-            position: absolute;
-            bottom: 16px;
-            left: 16px;
-            z-index: 1;
-            display: none;
-            font: 13px ui-sans-serif, system-ui, sans-serif;
-            padding: 8px 12px;
-            border-radius: 8px;
-            background: rgba(0, 0, 0, 0.6);
-            color: #eee;
-            pointer-events: none;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 
 <body>
@@ -70,8 +17,6 @@
     <div id="hint">Click points on the model to outline an area &middot; <b>Enter</b> or click near the first point to close &middot; <b>Esc</b> to cancel</div>
     <input id="file" type="file" accept=".glb" hidden>
 
-    <!-- The importmap must live in the HTML document; the module below resolves
-     its bare "three" / "three/addons/" imports against it. -->
     <script type="importmap">
 {
   "imports": {
