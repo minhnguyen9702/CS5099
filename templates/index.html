@@ -11,11 +11,15 @@
 <body>
     <div class="toolbar">
         <button class="btn" id="open">Open .glb</button>
-        <button class="btn" id="annotate">Annotate</button>
-        <button class="btn" id="clear">Clear</button>
+        <button class="btn" id="new-annotation">New Annotation</button>
+        <button class="btn" id="outline">Draw Outline</button>
+        <button class="btn" id="export">Export</button>
+        <button class="btn" id="import">Import</button>
     </div>
+    <div id="panel"></div>
     <div id="hint">Click points on the model to outline an area &middot; <b>Enter</b> or click near the first point to close &middot; <b>Esc</b> to cancel</div>
     <input id="file" type="file" accept=".glb" hidden>
+    <input id="annotationFile" type="file" accept=".json,application/json" hidden>
 
     <script type="importmap">
 {
