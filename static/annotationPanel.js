@@ -11,7 +11,7 @@ export function initAnnotationPanel({
     btn.textContent = label;
     btn.title = title;
     btn.addEventListener('click', (e) => {
-      e.stopPropagation(); // don't also trigger the annotation's select handler
+      e.stopPropagation();
       onClick();
     });
     return btn;
@@ -21,8 +21,6 @@ export function initAnnotationPanel({
     return createButton('del', 'x', title, onClick);
   }
 
-  // The group picker: a dropdown to switch groups, a field to rename the
-  // current one, and a delete control.
   function renderGroupBar(groups, current) {
     const bar = document.createElement('div');
     bar.className = 'group-bar';
@@ -30,11 +28,13 @@ export function initAnnotationPanel({
     const select = document.createElement('select');
     select.className = 'group-select';
     select.title = 'Switch annotation group';
+    let currentOption = null;
     for (const group of groups) {
       const option = document.createElement('option');
       option.value = group.id;
       option.textContent = group.name;
       option.selected = group === current;
+      if (option.selected) currentOption = option;
       select.append(option);
     }
     select.addEventListener('change', () => onSelectGroup(select.value));
@@ -44,7 +44,10 @@ export function initAnnotationPanel({
     name.placeholder = 'Group name';
     name.title = 'Rename this group';
     name.value = current.name;
-    name.addEventListener('input', () => onRenameGroup(current.id, name.value));
+    name.addEventListener('input', () => {
+      onRenameGroup(current.id, name.value);
+      currentOption.textContent = name.value;
+    });
 
     bar.append(select, name, createDeleteButton('Delete group', () => onDeleteGroup(current.id)));
     return bar;
