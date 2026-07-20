@@ -94,8 +94,6 @@ canvas {
 #panel .annotation-head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    font-weight: 600;
     padding: 4px 6px;
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.08);
@@ -108,6 +106,29 @@ canvas {
 
 #panel .annotation.current .annotation-head {
     background: rgba(37, 99, 235, 0.45);
+}
+
+/* Reads as the annotation's title until it's focused for renaming. */
+#panel .annotation-name {
+    min-width: 0;
+    flex: 1;
+    padding: 1px 3px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: none;
+    color: inherit;
+    font: 600 14px ui-sans-serif, system-ui, sans-serif;
+    cursor: text;
+}
+
+#panel .annotation-name:hover {
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+#panel .annotation-name:focus {
+    outline: none;
+    border-color: #2563eb;
+    background: rgba(0, 0, 0, 0.25);
 }
 
 /* Shared look for every editable field in the panel. */

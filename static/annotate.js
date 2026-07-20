@@ -185,7 +185,7 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel, ge
     const built = (record.outlines || []).filter(isDrawable).map(buildOutline);
     if (!built.length) return;
 
-    const annotation = store.create({ id: record.id, body: record.body, groupId });
+    const annotation = store.create({ id: record.id, name: record.name, body: record.body, groupId });
     for (const outline of built) store.addOutline(annotation.id, outline);
   }
 
@@ -250,6 +250,7 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel, ge
     getCurrentAnnotation: store.getCurrent,
     onSelectAnnotation: selectAnnotation,
     onDeleteAnnotation: deleteAnnotation,
+    onRenameAnnotation: store.setName,
     onEditBody: store.setBody,
 
     onDeleteOutline: deleteOutline,

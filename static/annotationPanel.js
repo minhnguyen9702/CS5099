@@ -1,6 +1,6 @@
 export function initAnnotationPanel({
   getGroups, getCurrentGroup, onSelectGroup, onRenameGroup, onDeleteGroup,
-  getAnnotations, getCurrentAnnotation, onSelectAnnotation, onDeleteAnnotation, onEditBody,
+  getAnnotations, getCurrentAnnotation, onSelectAnnotation, onDeleteAnnotation, onRenameAnnotation, onEditBody,
   onDeleteOutline, onShowOutline, onSetOutlineView,
 }) {
   const panel = document.getElementById('panel');
@@ -63,7 +63,7 @@ export function initAnnotationPanel({
 
     panel.append(renderGroupBar(groups, currentGroup));
 
-    getAnnotations().forEach((annotation, annotationIdx) => {
+    getAnnotations().forEach((annotation) => {
       const annotationElement = document.createElement('div');
       annotationElement.className = annotation === currentAnnotation ? 'annotation current' : 'annotation';
 
@@ -71,8 +71,16 @@ export function initAnnotationPanel({
       annotationHeader.className = 'annotation-head';
       annotationHeader.title = 'Click to make this the current annotation';
       annotationHeader.addEventListener('click', () => onSelectAnnotation(annotation.id));
-      const title = document.createElement('span');
-      title.textContent = `Annotation ${annotationIdx + 1}`;
+
+      const title = document.createElement('input');
+      title.className = 'annotation-name';
+      title.placeholder = 'Annotation name';
+      title.title = 'Rename this annotation';
+      title.value = annotation.name;
+      title.addEventListener('input', () => onRenameAnnotation(annotation.id, title.value));
+      // Typing in the name shouldn't also count as clicking the header.
+      title.addEventListener('click', (e) => e.stopPropagation());
+
       annotationHeader.append(title, createDeleteButton('Delete annotation', () => onDeleteAnnotation(annotation.id)));
       annotationElement.append(annotationHeader);
 

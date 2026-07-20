@@ -74,14 +74,24 @@ export function createAnnotationStore() {
     return find(annotationId);
   }
 
-  function create({ id, body, groupId } = {}) {
+  function create({ id, name, body, groupId } = {}) {
     const group = groupId ? findGroup(groupId) : ensureCurrentGroup();
-    const annotation = { id: id || crypto.randomUUID(), body: body || '', outlines: [] };
+    const annotation = {
+      id: id || crypto.randomUUID(),
+      name: name || `Annotation ${group.annotations.length + 1}`,
+      body: body || '',
+      outlines: [],
+    };
     group.annotations.push(annotation);
     return annotation;
   }
 
   const ensureCurrent = () => getCurrent() || setCurrent(create().id);
+
+  function setName(annotationId, name) {
+    const annotation = find(annotationId);
+    if (annotation) annotation.name = name;
+  }
 
   function setBody(annotationId, body) {
     const annotation = find(annotationId);
@@ -140,6 +150,7 @@ export function createAnnotationStore() {
     setCurrent,
     ensureCurrent,
     create,
+    setName,
     setBody,
     removeAnnotation,
     findOutline,
