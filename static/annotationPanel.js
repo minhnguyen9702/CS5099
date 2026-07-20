@@ -1,5 +1,8 @@
-// Side panel listing annotations and their outlines, with delete controls.
-export function initAnnotationPanel({ getAnnotations, getCurrentId, onSelectAnnotation, onDeleteAnnotation, onDeleteOutline, onShowOutline, onSetOutlineView, onEditBody }) {
+export function initAnnotationPanel({
+  getGroups, getCurrentGroup, onSelectGroup, onRenameGroup, onDeleteGroup,
+  getAnnotations, getCurrentAnnotation, onSelectAnnotation, onDeleteAnnotation, onEditBody,
+  onDeleteOutline, onShowOutline, onSetOutlineView,
+}) {
   const panel = document.getElementById('panel');
 
   function createButton(className, label, title, onClick) {
@@ -18,15 +21,48 @@ export function initAnnotationPanel({ getAnnotations, getCurrentId, onSelectAnno
     return createButton('del', 'x', title, onClick);
   }
 
-  function render() {
-    const annotations = getAnnotations();
-    const currentId = getCurrentId ? getCurrentId() : null;
-    panel.innerHTML = '';
-    panel.style.display = annotations.length ? 'block' : 'none';
+  // The group picker: a dropdown to switch groups, a field to rename the
+  // current one, and a delete control.
+  function renderGroupBar(groups, current) {
+    const bar = document.createElement('div');
+    bar.className = 'group-bar';
 
-    annotations.forEach((annotation, annotationIdx) => {
+    const select = document.createElement('select');
+    select.className = 'group-select';
+    select.title = 'Switch annotation group';
+    for (const group of groups) {
+      const option = document.createElement('option');
+      option.value = group.id;
+      option.textContent = group.name;
+      option.selected = group === current;
+      select.append(option);
+    }
+    select.addEventListener('change', () => onSelectGroup(select.value));
+
+    const name = document.createElement('input');
+    name.className = 'group-name';
+    name.placeholder = 'Group name';
+    name.title = 'Rename this group';
+    name.value = current.name;
+    name.addEventListener('input', () => onRenameGroup(current.id, name.value));
+
+    bar.append(select, name, createDeleteButton('Delete group', () => onDeleteGroup(current.id)));
+    return bar;
+  }
+
+  function render() {
+    const groups = getGroups();
+    const currentGroup = getCurrentGroup();
+    const currentAnnotation = getCurrentAnnotation();
+    panel.innerHTML = '';
+    panel.style.display = currentGroup ? 'block' : 'none';
+    if (!currentGroup) return;
+
+    panel.append(renderGroupBar(groups, currentGroup));
+
+    getAnnotations().forEach((annotation, annotationIdx) => {
       const annotationElement = document.createElement('div');
-      annotationElement.className = annotation.id === currentId ? 'annotation current' : 'annotation';
+      annotationElement.className = annotation === currentAnnotation ? 'annotation current' : 'annotation';
 
       const annotationHeader = document.createElement('div');
       annotationHeader.className = 'annotation-head';
@@ -50,7 +86,6 @@ export function initAnnotationPanel({ getAnnotations, getCurrentId, onSelectAnno
         const label = document.createElement('span');
         label.textContent = `Outline ${outlineIdx + 1}`;
         if (outline.view) {
-          // Clicking the label returns the camera to where the outline was drawn.
           label.className = 'outline-view';
           label.title = 'Click to return to the view this outline was drawn from';
           label.addEventListener('click', () => onShowOutline(annotation.id, outline.id));

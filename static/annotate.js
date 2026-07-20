@@ -1,43 +1,32 @@
-// Area annotation by outlining points on the model surface.
 import * as THREE from 'three';
-import { buildTriangleSoup, sliceLineOnSurface } from './surfaceline.js';
+import { createAnnotationStore } from './annotationStore.js';
+import { initOutlineRenderer } from './outlineRenderer.js';
 import { initAnnotationLoader } from './annotationLoader.js';
 import { initAnnotationPanel } from './annotationPanel.js';
+
+const CLOSE_LOOP_PIXELS = 15;
+
+const toRecord = (v) => ({ x: v.x, y: v.y, z: v.z });
+const toVectors = (list) => (list || []).map((p) => new THREE.Vector3(p.x, p.y, p.z));
 
 export function initAnnotation({ scene, camera, renderer, controls, getModel, getView, setView }) {
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
 
+  const newGroupButton = document.getElementById('new-group');
   const newAnnotationButton = document.getElementById('new-annotation');
   const outlineButton = document.getElementById('outline');
   const hint = document.getElementById('hint');
 
+  const store = createAnnotationStore();
+  const outlines = initOutlineRenderer({ scene, getModel });
+
   let outlining = false;
-  let modelRadius = 1;
 
-  const annotations = [];
-  let currentAnnotation = null; // annotation new outlines are added to
-
-  let soup = null;
-  let soupModel = null;
-
-  // functions tracking in-progress outline
   let points = [];
   let normals = [];
-  let committedSegs = [];
-  let activeGroup = null;
-  let outlineSegs = null;
-  let previewLine = null;
-
-  const markerGeom = new THREE.SphereGeometry(1, 16, 12);
-
-  // While drawing an annotation, materials ignore depth
-  // on close materials are swapped to depth-tested materials 
-  // so that the model can occlude the finished annotation.
-  const editMarkerMaterials = new THREE.MeshBasicMaterial({ color: 0x2563eb, depthTest: false });
-  const editOutlineMaterials = new THREE.LineBasicMaterial({ color: 0x2563eb, depthTest: false });
-  const markerMaterials = new THREE.MeshBasicMaterial({ color: 0x2563eb });
-  const outlineMaterials = new THREE.LineBasicMaterial({ color: 0x2563eb });
+  let segs = [];
+  let active = null;
 
   function raycastModel(event) {
     const model = getModel();
@@ -57,263 +46,174 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel, ge
   }
 
 
-  function computeModelRadius() {
-    const box = new THREE.Box3().setFromObject(getModel());
-    if (box.isEmpty()) return 1;
-    return box.getSize(new THREE.Vector3()).length() / 2 || 1;
-  }
+  const outlinesOf = (annotations) => annotations.flatMap((a) => a.outlines);
 
-  function ensureSoup() {
-    const model = getModel();
-    if (!soup || soupModel !== model) {
-      soup = buildTriangleSoup(model);
-      soupModel = model;
+
+  function syncOutlineVisibility() {
+    const current = store.getCurrentGroup();
+    for (const group of store.getGroups()) {
+      for (const outline of outlinesOf(group.annotations)) {
+        outlines.setGroupVisible(outline.group, group === current);
+      }
     }
-    return soup;
   }
 
-  function sliceEdgeBetween(from, to, nFrom, nTo) {
-    const avgN = nFrom.clone().add(nTo);
-    if (avgN.lengthSq() < 1e-20) avgN.copy(nFrom);
-    avgN.normalize();
-    const mid = from.clone().add(to).multiplyScalar(0.5);
-    const viewpoint = mid.addScaledVector(avgN, from.distanceTo(to) || modelRadius * 0.1);
-    const segs = sliceLineOnSurface(ensureSoup(), from, to, viewpoint);
-    // Once complete lift the finished annotation off of model's surface so that its visible.
-    for (const seg of segs) seg.addScaledVector(avgN, modelRadius * 0.0005);
-    return segs;
-  }
-
-  function sliceEdge(i, j) {
-    return sliceEdgeBetween(points[i], points[j], normals[i], normals[j]);
-  }
-
-  // Re-slice a full closed outline from its clicked points (used on import).
-  function buildOutlineSegs(pts, nrms) {
-    const segs = [];
-    for (let i = 0; i < pts.length; i++) {
-      const j = (i + 1) % pts.length;
-      segs.push(...sliceEdgeBetween(pts[i], pts[j], nrms[i], nrms[j]));
-    }
-    return segs;
-  }
+  // DRAWING
 
   function startOutline() {
     points = [];
     normals = [];
-    committedSegs = [];
-    activeGroup = new THREE.Group();
-    activeGroup.renderOrder = 999;
-    outlineSegs = new THREE.LineSegments(new THREE.BufferGeometry(), editOutlineMaterials);
-    previewLine = new THREE.Line(new THREE.BufferGeometry(), editOutlineMaterials);
-    outlineSegs.renderOrder = 999;
-    previewLine.renderOrder = 999;
-    outlineSegs.frustumCulled = false;
-    previewLine.frustumCulled = false;
-    activeGroup.add(outlineSegs, previewLine);
-    scene.add(activeGroup);
+    segs = [];
+    active = outlines.createEditGroup();
   }
 
   function refreshOutline() {
-    outlineSegs.geometry.setFromPoints(committedSegs);
+    active.segments.geometry.setFromPoints(segs);
   }
 
   function updatePreview(hover) {
     const verts = (hover && points.length) ? [points[points.length - 1], hover] : [];
-    previewLine.geometry.setFromPoints(verts);
+    active.preview.geometry.setFromPoints(verts);
   }
 
-  function addMarker(dp) {
-    const m = new THREE.Mesh(markerGeom, editMarkerMaterials);
-    m.position.copy(dp);
-    m.scale.setScalar(modelRadius * 0.0005);
-    m.renderOrder = 1000;
-    activeGroup.add(m);
+  function sliceBetween(i, j) {
+    return outlines.sliceEdge(points[i], points[j], normals[i], normals[j]);
   }
 
   function addPoint(hit) {
-    const n = worldNormal(hit);
     points.push(hit.point.clone());
-    normals.push(n);
-    addMarker(points[points.length - 1]);
+    normals.push(worldNormal(hit));
+    outlines.addEditMarker(active.group, points[points.length - 1]);
     if (points.length >= 2) {
-      committedSegs.push(...sliceEdge(points.length - 2, points.length - 1));
+      segs.push(...sliceBetween(points.length - 2, points.length - 1));
       refreshOutline();
     }
     updatePreview(null);
   }
 
-  function commitMaterials(group) {
-  // Swap a finished annotation to depth-tested materials so the model occludes it.
-    group.traverse((o) => {
-      if (o.isLineSegments) o.material = outlineMaterials;
-      else if (o.isMesh) o.material = markerMaterials;
-    });
-  }
-
   function closeOutline() {
     if (points.length < 3) return;
-    committedSegs.push(...sliceEdge(points.length - 1, 0));
+    segs.push(...sliceBetween(points.length - 1, 0));
     refreshOutline();
+    outlines.commitEditGroup(active);
 
-    // The preview line only matters while drawing; drop it once committed.
-    activeGroup.remove(previewLine);
-    previewLine.geometry.dispose();
-
-    commitMaterials(activeGroup);
-
-    if (!currentAnnotation) currentAnnotation = newAnnotation();
-    currentAnnotation.outlines.push({
+    store.addOutline(store.ensureCurrent().id, {
       id: crypto.randomUUID(),
-      points: points.map((p) => ({ x: p.x, y: p.y, z: p.z })),
-      normals: normals.map((n) => ({ x: n.x, y: n.y, z: n.z })),
+      points: points.map(toRecord),
+      normals: normals.map(toRecord),
       view: JSON.parse(getView()),
-      group: activeGroup,
+      group: active.group,
     });
     refreshPanel();
 
-    activeGroup = null;
     startOutline();
-  }
-
-  function newAnnotation() {
-    const annotation = { id: crypto.randomUUID(), body: '', outlines: [] };
-    annotations.push(annotation);
-    return annotation;
-  }
-
-  function setAnnotationBody(annotationId, body) {
-    const annotation = annotations.find((a) => a.id === annotationId);
-    if (annotation) annotation.body = body;
-  }
-
-  function disposeGroup(group) {
-    scene.remove(group);
-    group.traverse((o) => {
-      if (o.geometry && o.geometry !== markerGeom) o.geometry.dispose();
-    });
   }
 
   function cancelOutline() {
-    if (activeGroup) disposeGroup(activeGroup);
+    if (active) outlines.disposeGroup(active.group);
     startOutline();
   }
 
+  // GROUP ACTIONS
+
+  function startNewGroup() {
+    if (!getModel()) return;
+    store.setCurrentGroup(store.createGroup().id);
+    refreshPanel();
+  }
+
+  function selectGroup(groupId) {
+    if (store.setCurrentGroup(groupId)) refreshPanel();
+  }
+
+
+  function deleteGroup(groupId) {
+    const removed = store.removeGroup(groupId);
+    if (removed) discardOutlines(outlinesOf(removed.annotations));
+  }
+
+  // ANNOTATION ACTIONS
+
+  function selectAnnotation(annotationId) {
+    if (store.setCurrent(annotationId)) refreshPanel();
+  }
+
+  function deleteAnnotation(annotationId) {
+    const removed = store.removeAnnotation(annotationId);
+    if (removed) discardOutlines(removed.outlines);
+  }
+
   function deleteOutline(annotationId, outlineId) {
-    const annotation = annotations.find((a) => a.id === annotationId);
-    if (!annotation) return;
-    const idx = annotation.outlines.findIndex((o) => o.id === outlineId);
-    if (idx < 0) return;
-    disposeGroup(annotation.outlines[idx].group);
-    annotation.outlines.splice(idx, 1);
+    const removed = store.removeOutline(annotationId, outlineId);
+    if (removed) discardOutlines([removed]);
+  }
+
+
+  function discardOutlines(removed) {
+    for (const outline of removed) outlines.disposeGroup(outline.group);
     refreshPanel();
   }
 
   function showOutline(annotationId, outlineId) {
-    const annotation = annotations.find((a) => a.id === annotationId);
-    if (!annotation) return;
-    const outline = annotation.outlines.find((o) => o.id === outlineId);
-    if (!outline || !outline.view) return;
-    setView(JSON.stringify(outline.view));
+    const outline = store.findOutline(annotationId, outlineId);
+    if (outline && outline.view) setView(JSON.stringify(outline.view));
   }
 
   function setOutlineView(annotationId, outlineId) {
-    const annotation = annotations.find((a) => a.id === annotationId);
-    if (!annotation) return;
-    const outline = annotation.outlines.find((o) => o.id === outlineId);
-    if (!outline) return;
-    outline.view = JSON.parse(getView());
+    store.setOutlineView(annotationId, outlineId, JSON.parse(getView()));
     refreshPanel();
   }
 
-  function selectAnnotation(annotationId) {
-    const annotation = annotations.find((a) => a.id === annotationId);
-    if (!annotation) return;
-    currentAnnotation = annotation;
-    refreshPanel();
-  }
+  // IMPORT/EXPORT
 
-  function deleteAnnotation(annotationId) {
-    const idx = annotations.findIndex((a) => a.id === annotationId);
-    if (idx < 0) return;
-    for (const o of annotations[idx].outlines) disposeGroup(o.group);
-    if (annotations[idx] === currentAnnotation) currentAnnotation = null;
-    annotations.splice(idx, 1);
-    refreshPanel();
-  }
+  // Fewer than 3 points can't close a loop, so such an outline is dropped.
+  const isDrawable = (outline) => (outline.points || []).length >= 3;
 
-  function getExportData() {
-    return {
-      annotations: annotations.map((a) => ({
-        id: a.id,
-        body: a.body || '',
-        outlines: a.outlines.map((o) => ({
-          id: o.id,
-          points: o.points,
-          normals: o.normals,
-          view: o.view,
-        })),
-      })),
-    };
-  }
-
-  function buildOutlineGroup(record) {
-    const pts = (record.points || []).map((p) => new THREE.Vector3(p.x, p.y, p.z));
-    const nrms = (record.normals || []).map((n) => new THREE.Vector3(n.x, n.y, n.z));
-    if (pts.length < 3) return null;
-
-    const group = new THREE.Group();
-    group.renderOrder = 999;
-
-    for (const p of pts) {
-      const m = new THREE.Mesh(markerGeom, markerMaterials);
-      m.position.copy(p);
-      m.scale.setScalar(modelRadius * 0.0005);
-      m.renderOrder = 1000;
-      group.add(m);
-    }
-
-    const outline = new THREE.LineSegments(new THREE.BufferGeometry(), outlineMaterials);
-    outline.renderOrder = 999;
-    outline.frustumCulled = false;
-    outline.geometry.setFromPoints(buildOutlineSegs(pts, nrms));
-    group.add(outline);
-
-    scene.add(group);
+  function buildOutline(record) {
     return {
       id: record.id || crypto.randomUUID(),
-      points: record.points || [],
+      points: record.points,
       normals: record.normals || [],
       view: record.view || null,
-      group,
+      group: outlines.buildGroup(toVectors(record.points), toVectors(record.normals)),
     };
   }
 
-  function addImportedAnnotation(record) {
-    const annotation = { id: record.id || crypto.randomUUID(), body: record.body || '', outlines: [] };
-    for (const o of record.outlines || []) {
-      const outline = buildOutlineGroup(o);
-      if (outline) annotation.outlines.push(outline);
-    }
-    if (annotation.outlines.length) annotations.push(annotation);
+  function importAnnotation(record, groupId) {
+    // An annotation with nothing drawable left is dropped rather than imported
+    // invisible, so the outlines are built before the annotation is created.
+    const built = (record.outlines || []).filter(isDrawable).map(buildOutline);
+    if (!built.length) return;
+
+    const annotation = store.create({ id: record.id, body: record.body, groupId });
+    for (const outline of built) store.addOutline(annotation.id, outline);
+  }
+
+  function importGroup(record) {
+    const group = store.createGroup({ id: record.id, name: record.name });
+    for (const annotation of record.annotations || []) importAnnotation(annotation, group.id);
   }
 
   function importAnnotations(data) {
     if (!getModel()) return;
-    modelRadius = computeModelRadius();
-    for (const record of data.annotations || []) addImportedAnnotation(record);
+    outlines.updateModelRadius();
+    for (const record of data.groups || []) importGroup(record);
+    const [first] = store.getGroups();
+    if (first && !store.getCurrentGroup()) store.setCurrentGroup(first.id);
     refreshPanel();
   }
 
+  // MODES
+
   function startNewAnnotation() {
     if (!getModel()) return;
-    currentAnnotation = newAnnotation();
+    store.setCurrent(store.create().id);
     refreshPanel();
   }
 
   function setOutlining(on) {
     if (on && !getModel()) return;
-    if (on && !currentAnnotation) currentAnnotation = newAnnotation();
+    if (on) store.ensureCurrent();
 
     outlining = on;
     controls.enabled = !on;
@@ -322,31 +222,45 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel, ge
     renderer.domElement.style.cursor = on ? 'crosshair' : '';
 
     if (on) {
-      modelRadius = computeModelRadius();
+      outlines.updateModelRadius();
       startOutline();
-    } else if (activeGroup) {
-      disposeGroup(activeGroup);
-      activeGroup = null;
+    } else if (active) {
+      outlines.disposeGroup(active.group);
+      active = null;
     }
     refreshPanel();
   }
 
+  // WIRING
+
+  newGroupButton.addEventListener('click', startNewGroup);
   newAnnotationButton.addEventListener('click', startNewAnnotation);
   outlineButton.addEventListener('click', () => setOutlining(!outlining));
 
-  initAnnotationLoader({ getExportData, onImport: importAnnotations });
+  initAnnotationLoader({ getExportData: store.getExportData, onImport: importAnnotations });
 
   const panel = initAnnotationPanel({
-    getAnnotations: () => annotations,
-    getCurrentId: () => (currentAnnotation ? currentAnnotation.id : null),
+    getGroups: store.getGroups,
+    getCurrentGroup: store.getCurrentGroup,
+    onSelectGroup: selectGroup,
+    onRenameGroup: store.setGroupName,
+    onDeleteGroup: deleteGroup,
+
+    getAnnotations: store.getVisibleAnnotations,
+    getCurrentAnnotation: store.getCurrent,
     onSelectAnnotation: selectAnnotation,
     onDeleteAnnotation: deleteAnnotation,
+    onEditBody: store.setBody,
+
     onDeleteOutline: deleteOutline,
     onShowOutline: showOutline,
     onSetOutlineView: setOutlineView,
-    onEditBody: setAnnotationBody,
   });
-  function refreshPanel() { panel.render(); }
+
+  function refreshPanel() {
+    syncOutlineVisibility();
+    panel.render();
+  }
 
   renderer.domElement.addEventListener('pointermove', (e) => {
     if (!outlining || points.length === 0) return;
@@ -366,7 +280,7 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel, ge
       const rect = renderer.domElement.getBoundingClientRect();
       const dx = (first.x - cur.x) * 0.5 * rect.width;
       const dy = (first.y - cur.y) * 0.5 * rect.height;
-      if (Math.hypot(dx, dy) < 15) {
+      if (Math.hypot(dx, dy) < CLOSE_LOOP_PIXELS) {
         closeOutline();
         return;
       }
