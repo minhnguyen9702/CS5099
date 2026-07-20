@@ -4,7 +4,7 @@ import { buildTriangleSoup, sliceLineOnSurface } from './surfaceline.js';
 import { initAnnotationLoader } from './annotationLoader.js';
 import { initAnnotationPanel } from './annotationPanel.js';
 
-export function initAnnotation({ scene, camera, renderer, controls, getModel }) {
+export function initAnnotation({ scene, camera, renderer, controls, getModel, getView, setView }) {
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
 
@@ -162,26 +162,29 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel }) 
 
     commitMaterials(activeGroup);
 
-    // Add this closed loop as an outline of the current annotation. Store the
-    // defining data (clicked points + surface normals) so it can be exported
-    // and re-sliced later.
     if (!currentAnnotation) currentAnnotation = newAnnotation();
     currentAnnotation.outlines.push({
       id: crypto.randomUUID(),
       points: points.map((p) => ({ x: p.x, y: p.y, z: p.z })),
       normals: normals.map((n) => ({ x: n.x, y: n.y, z: n.z })),
+      view: JSON.parse(getView()),
       group: activeGroup,
     });
     refreshPanel();
 
     activeGroup = null;
-    startOutline(); // ready for the next outline
+    startOutline();
   }
 
   function newAnnotation() {
-    const annotation = { id: crypto.randomUUID(), outlines: [] };
+    const annotation = { id: crypto.randomUUID(), body: '', outlines: [] };
     annotations.push(annotation);
     return annotation;
+  }
+
+  function setAnnotationBody(annotationId, body) {
+    const annotation = annotations.find((a) => a.id === annotationId);
+    if (annotation) annotation.body = body;
   }
 
   function disposeGroup(group) {
@@ -203,13 +206,30 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel }) 
     if (idx < 0) return;
     disposeGroup(annotation.outlines[idx].group);
     annotation.outlines.splice(idx, 1);
-    refreshPanel(); // keep the annotation even when it has no outlines left
+    refreshPanel();
+  }
+
+  function showOutline(annotationId, outlineId) {
+    const annotation = annotations.find((a) => a.id === annotationId);
+    if (!annotation) return;
+    const outline = annotation.outlines.find((o) => o.id === outlineId);
+    if (!outline || !outline.view) return;
+    setView(JSON.stringify(outline.view));
+  }
+
+  function setOutlineView(annotationId, outlineId) {
+    const annotation = annotations.find((a) => a.id === annotationId);
+    if (!annotation) return;
+    const outline = annotation.outlines.find((o) => o.id === outlineId);
+    if (!outline) return;
+    outline.view = JSON.parse(getView());
+    refreshPanel();
   }
 
   function selectAnnotation(annotationId) {
     const annotation = annotations.find((a) => a.id === annotationId);
     if (!annotation) return;
-    currentAnnotation = annotation; // new outlines will be added here
+    currentAnnotation = annotation;
     refreshPanel();
   }
 
@@ -222,22 +242,21 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel }) 
     refreshPanel();
   }
 
-  // ---- export / import -------------------------------------------------
-  // Serializable view of the annotations, handed to annotationLoader on export.
   function getExportData() {
     return {
       annotations: annotations.map((a) => ({
         id: a.id,
+        body: a.body || '',
         outlines: a.outlines.map((o) => ({
           id: o.id,
           points: o.points,
           normals: o.normals,
+          view: o.view,
         })),
       })),
     };
   }
 
-  // Rebuild one outline (markers + re-sliced line) from stored point/normal data.
   function buildOutlineGroup(record) {
     const pts = (record.points || []).map((p) => new THREE.Vector3(p.x, p.y, p.z));
     const nrms = (record.normals || []).map((n) => new THREE.Vector3(n.x, n.y, n.z));
@@ -265,12 +284,13 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel }) 
       id: record.id || crypto.randomUUID(),
       points: record.points || [],
       normals: record.normals || [],
+      view: record.view || null,
       group,
     };
   }
 
   function addImportedAnnotation(record) {
-    const annotation = { id: record.id || crypto.randomUUID(), outlines: [] };
+    const annotation = { id: record.id || crypto.randomUUID(), body: record.body || '', outlines: [] };
     for (const o of record.outlines || []) {
       const outline = buildOutlineGroup(o);
       if (outline) annotation.outlines.push(outline);
@@ -285,7 +305,6 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel }) 
     refreshPanel();
   }
 
-  // Create a new annotation and make it the one outlines are added to.
   function startNewAnnotation() {
     if (!getModel()) return;
     currentAnnotation = newAnnotation();
@@ -294,7 +313,6 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel }) 
 
   function setOutlining(on) {
     if (on && !getModel()) return;
-    // Outlining needs an annotation to add to; create one if none is current.
     if (on && !currentAnnotation) currentAnnotation = newAnnotation();
 
     outlining = on;
@@ -316,16 +334,17 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel }) 
   newAnnotationButton.addEventListener('click', startNewAnnotation);
   outlineButton.addEventListener('click', () => setOutlining(!outlining));
 
-  // export / import file handling (see annotationLoader.js)
   initAnnotationLoader({ getExportData, onImport: importAnnotations });
 
-  // annotation list side panel (see annotationPanel.js)
   const panel = initAnnotationPanel({
     getAnnotations: () => annotations,
     getCurrentId: () => (currentAnnotation ? currentAnnotation.id : null),
     onSelectAnnotation: selectAnnotation,
     onDeleteAnnotation: deleteAnnotation,
     onDeleteOutline: deleteOutline,
+    onShowOutline: showOutline,
+    onSetOutlineView: setOutlineView,
+    onEditBody: setAnnotationBody,
   });
   function refreshPanel() { panel.render(); }
 

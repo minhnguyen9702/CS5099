@@ -54,7 +54,7 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
 });
 
-let homeState = null
+let homeView = null
 
 window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
@@ -62,11 +62,11 @@ window.addEventListener('keydown', (e) => {
 
   if (e.key.toLowerCase() !== 'r') return;
 
-  if (e.shiftKey) homeState = getState()
-  else setState(homeState);
+  if (e.shiftKey) homeView = getView()
+  else setView(homeView);
 });
 
-function getState() {
+function getView() {
   camera.updateMatrix();
   controls._gizmos.updateMatrix();
 
@@ -84,7 +84,7 @@ function getState() {
   });
 }
 
-function setState(json) {
+function setView(json) {
   controls.setStateFromJSON(json);
 }
 
@@ -95,4 +95,6 @@ initAnnotation({
   renderer,
   controls,
   getModel,
+  getView,
+  setView,
 });
