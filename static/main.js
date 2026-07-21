@@ -23,6 +23,12 @@ const camera = new THREE.PerspectiveCamera(
 camera.up.set(0, 1, 0);
 
 
+// background color (driven by the toolbar picker)
+const bgColorInput = document.getElementById('bgColor');
+scene.background = new THREE.Color(bgColorInput.value);
+bgColorInput.addEventListener('input', (e) => scene.background.set(e.target.value));
+
+
 // lighting
 scene.add(new THREE.AmbientLight(0xffffff, 0.9));
 const pmrem = new THREE.PMREMGenerator(renderer);

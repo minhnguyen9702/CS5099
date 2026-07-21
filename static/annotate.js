@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createAnnotationStore } from './annotationStore.js';
-import { initOutlineRenderer } from './outlineRenderer.js';
+import { initOutlineRenderer, setOutlineColor } from './outlineRenderer.js';
 import { initAnnotationLoader } from './annotationLoader.js';
 import { initAnnotationPanel } from './annotationPanel.js';
 import { initAnnotationPicker } from './annotationPicker.js';
@@ -17,7 +17,11 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel, ge
   const newGroupButton = document.getElementById('new-group');
   const newAnnotationButton = document.getElementById('new-annotation');
   const outlineButton = document.getElementById('outline');
+  const outlineColorInput = document.getElementById('outlineColor');
   const hint = document.getElementById('hint');
+
+  setOutlineColor(outlineColorInput.value);
+  outlineColorInput.addEventListener('input', (e) => setOutlineColor(e.target.value));
 
   const store = createAnnotationStore();
   const outlines = initOutlineRenderer({ scene, getModel });
@@ -185,8 +189,6 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel, ge
   }
 
   function importAnnotation(record, groupId) {
-    // An annotation with nothing drawable left is dropped rather than imported
-    // invisible, so the outlines are built before the annotation is created.
     const built = (record.outlines || []).filter(isDrawable).map(buildOutline);
     if (!built.length) return;
 

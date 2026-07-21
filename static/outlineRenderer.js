@@ -14,6 +14,19 @@ const MARKER_MATERIAL = new THREE.MeshBasicMaterial({ color: 0x2563eb });
 const OUTLINE_MATERIAL = new LineMaterial({ color: 0x2563eb, linewidth: 1 });
 const SELECTED_OUTLINE_MATERIAL = new LineMaterial({ color: 0x2563eb, linewidth: 3 });
 
+// All outline and marker materials share one color, driven by the toolbar picker.
+const COLORED_MATERIALS = [
+  EDIT_MARKER_MATERIAL,
+  EDIT_OUTLINE_MATERIAL,
+  MARKER_MATERIAL,
+  OUTLINE_MATERIAL,
+  SELECTED_OUTLINE_MATERIAL,
+];
+
+export function setOutlineColor(hex) {
+  for (const material of COLORED_MATERIALS) material.color.set(hex);
+}
+
 function updateOutlineResolution() {
   for (const material of [OUTLINE_MATERIAL, SELECTED_OUTLINE_MATERIAL]) {
     material.resolution.set(window.innerWidth, window.innerHeight);
