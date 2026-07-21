@@ -78,7 +78,6 @@ export function initAnnotationPanel({
       title.title = 'Rename this annotation';
       title.value = annotation.name;
       title.addEventListener('input', () => onRenameAnnotation(annotation.id, title.value));
-      // Typing in the name shouldn't also count as clicking the header.
       title.addEventListener('click', (e) => e.stopPropagation());
 
       annotationHeader.append(title, createDeleteButton('Delete annotation', () => onDeleteAnnotation(annotation.id)));

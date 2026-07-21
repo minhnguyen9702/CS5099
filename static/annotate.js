@@ -3,6 +3,7 @@ import { createAnnotationStore } from './annotationStore.js';
 import { initOutlineRenderer } from './outlineRenderer.js';
 import { initAnnotationLoader } from './annotationLoader.js';
 import { initAnnotationPanel } from './annotationPanel.js';
+import { initAnnotationPicker } from './annotationPicker.js';
 
 const CLOSE_LOOP_PIXELS = 15;
 
@@ -51,9 +52,13 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel, ge
 
   function syncOutlineVisibility() {
     const current = store.getCurrentGroup();
+    const currentAnnotation = store.getCurrent();
     for (const group of store.getGroups()) {
-      for (const outline of outlinesOf(group.annotations)) {
-        outlines.setGroupVisible(outline.group, group === current);
+      for (const annotation of group.annotations) {
+        for (const outline of annotation.outlines) {
+          outlines.setGroupVisible(outline.group, group === current);
+          outlines.setGroupSelected(outline.group, annotation === currentAnnotation);
+        }
       }
     }
   }
@@ -238,6 +243,15 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel, ge
   outlineButton.addEventListener('click', () => setOutlining(!outlining));
 
   initAnnotationLoader({ getExportData: store.getExportData, onImport: importAnnotations });
+
+  initAnnotationPicker({
+    camera,
+    renderer,
+    getModel,
+    getAnnotations: store.getVisibleAnnotations,
+    isEnabled: () => !outlining,
+    onPick: (annotation) => selectAnnotation(annotation.id),
+  });
 
   const panel = initAnnotationPanel({
     getGroups: store.getGroups,

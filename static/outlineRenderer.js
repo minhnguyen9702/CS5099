@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
+import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { buildTriangleSoup, sliceLineOnSurface } from './surfaceline.js';
 
 // While drawing an annotation, materials ignore depth so the outline stays
@@ -7,7 +10,18 @@ import { buildTriangleSoup, sliceLineOnSurface } from './surfaceline.js';
 const EDIT_MARKER_MATERIAL = new THREE.MeshBasicMaterial({ color: 0x2563eb, depthTest: false });
 const EDIT_OUTLINE_MATERIAL = new THREE.LineBasicMaterial({ color: 0x2563eb, depthTest: false });
 const MARKER_MATERIAL = new THREE.MeshBasicMaterial({ color: 0x2563eb });
-const OUTLINE_MATERIAL = new THREE.LineBasicMaterial({ color: 0x2563eb });
+
+const OUTLINE_MATERIAL = new LineMaterial({ color: 0x2563eb, linewidth: 1 });
+const SELECTED_OUTLINE_MATERIAL = new LineMaterial({ color: 0x2563eb, linewidth: 3 });
+
+function updateOutlineResolution() {
+  for (const material of [OUTLINE_MATERIAL, SELECTED_OUTLINE_MATERIAL]) {
+    material.resolution.set(window.innerWidth, window.innerHeight);
+  }
+}
+
+updateOutlineResolution();
+window.addEventListener('resize', updateOutlineResolution);
 
 const MARKER_GEOM = new THREE.SphereGeometry(1, 16, 12);
 
@@ -90,13 +104,35 @@ export function initOutlineRenderer({ scene, getModel }) {
     group.add(makeMarker(position, EDIT_MARKER_MATERIAL));
   }
 
-  function commitEditGroup({ group, preview }) {
-    group.remove(preview);
+  function makeFatLine(segs) {
+  // The thick line of a finished outline. LineSegmentsGeometry wants the
+  // segment endpoints flattened, and has no setFromPoints of its own.
+    const geometry = new LineSegmentsGeometry();
+    if (segs.length) geometry.setPositions(segs.flatMap((p) => [p.x, p.y, p.z]));
+
+    const line = new LineSegments2(geometry, OUTLINE_MATERIAL);
+    line.renderOrder = OUTLINE_RENDER_ORDER;
+    line.frustumCulled = false;
+    return line;
+  }
+
+  function commitEditGroup({ group, segments, preview }) {
+  // The thin line drawn while editing is swapped for a thick one. Markers are
+  // re-materialised first because LineSegments2 is itself a Mesh, and would
+  // otherwise be caught by that traverse.
+    group.remove(preview, segments);
     preview.geometry.dispose();
+
     group.traverse((o) => {
-      if (o.isLineSegments) o.material = OUTLINE_MATERIAL;
-      else if (o.isMesh) o.material = MARKER_MATERIAL;
+      if (o.isMesh) o.material = MARKER_MATERIAL;
     });
+
+    const position = segments.geometry.getAttribute('position');
+    const segs = position
+      ? Array.from({ length: position.count }, (_, i) => new THREE.Vector3().fromBufferAttribute(position, i))
+      : [];
+    group.add(makeFatLine(segs));
+    segments.geometry.dispose();
   }
 
   function buildGroup(pts, nrms) {
@@ -105,9 +141,7 @@ export function initOutlineRenderer({ scene, getModel }) {
     group.renderOrder = OUTLINE_RENDER_ORDER;
     for (const p of pts) group.add(makeMarker(p, MARKER_MATERIAL));
 
-    const segments = makeLine(THREE.LineSegments, OUTLINE_MATERIAL);
-    segments.geometry.setFromPoints(sliceOutline(pts, nrms));
-    group.add(segments);
+    group.add(makeFatLine(sliceOutline(pts, nrms)));
 
     scene.add(group);
     return group;
@@ -117,6 +151,13 @@ export function initOutlineRenderer({ scene, getModel }) {
   // Outlines belonging to a group other than the selected one stay in the scene
   // but hidden, so switching groups doesn't rebuild their geometry.
     group.visible = visible;
+  }
+
+  function setGroupSelected(group, selected) {
+  // The outlines of the current annotation are drawn thicker than the rest.
+    group.traverse((o) => {
+      if (o.isLineSegments2) o.material = selected ? SELECTED_OUTLINE_MATERIAL : OUTLINE_MATERIAL;
+    });
   }
 
   function disposeGroup(group) {
@@ -134,6 +175,7 @@ export function initOutlineRenderer({ scene, getModel }) {
     commitEditGroup,
     buildGroup,
     setGroupVisible,
+    setGroupSelected,
     disposeGroup,
   };
 }

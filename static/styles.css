@@ -13,7 +13,17 @@ canvas {
     position: absolute;
     top: 16px;
     left: 16px;
+    right: 16px;
     z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    /* The bar spans the window now, so let clicks fall through to the model and
+       make only the buttons themselves clickable. */
+    pointer-events: none;
+}
+
+.toolbar-left,
+.toolbar-right {
     display: flex;
     gap: 8px;
 }
@@ -26,6 +36,7 @@ canvas {
     border: 1px solid #3a3a3a;
     background: #262626;
     color: #eee;
+    pointer-events: auto;
 }
 
 .btn:hover {
@@ -53,7 +64,7 @@ canvas {
 
 #panel {
     position: absolute;
-    top: 16px;
+    top: 68px;
     right: 16px;
     z-index: 1;
     display: none;
@@ -102,6 +113,11 @@ canvas {
     min-width: 0;
     flex: 1;
     padding: 5px 6px;
+}
+
+#panel .group-select option {
+    background: #fff;
+    color: #000;
 }
 
 #panel .annotation {
