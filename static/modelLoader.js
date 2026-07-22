@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 export function initModelLoader({ scene, camera, controls }) {
   const loader = new GLTFLoader();
   let currentModel = null;
+  let currentFile = null;
 
   function frameObject(object, margin = 1.2) {
     const box = new THREE.Box3().setFromObject(object);
@@ -37,6 +38,7 @@ export function initModelLoader({ scene, camera, controls }) {
 
       if (currentModel) removeModel(currentModel);
       currentModel = gltf.scene;
+      currentFile = file;
       scene.add(currentModel);
 
       frameObject(currentModel);
@@ -67,6 +69,7 @@ export function initModelLoader({ scene, camera, controls }) {
 
   return {
     getModel: () => currentModel,
+    getModelFile: () => currentFile,
     frameObject,
   };
 }

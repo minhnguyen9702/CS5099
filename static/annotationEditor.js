@@ -9,7 +9,7 @@ const CLOSE_LOOP_PIXELS = 15;
 const toRecord = (v) => ({ x: v.x, y: v.y, z: v.z });
 const toVectors = (list) => (list || []).map((p) => new THREE.Vector3(p.x, p.y, p.z));
 
-export function initAnnotation({ store, applyBgColor, scene, camera, renderer, controls, getModel, getView, setView }) {
+export function initAnnotationEditor({ store, applyBgColor, scene, camera, renderer, controls, getModel, getView, setView }) {
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
 

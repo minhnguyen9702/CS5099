@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ArcballControls } from 'three/addons/controls/ArcballControls.js';
 import { initModelLoader } from './modelLoader.js';
-import { initAnnotation } from './annotate.js';
+import { initAnnotationEditor } from './annotationEditor.js';
 import { createAnnotationStore } from './annotationStore.js';
+import { initViewerGenerator } from './viewerGenerator.js';
 
 
 // document-level state shared across modules (see annotationStore.js)
@@ -55,7 +56,7 @@ controls.setGizmosVisible(false);
 
 
 // glb model importing (see modelLoader.js)
-const { getModel, frameObject } = initModelLoader({ scene, camera, controls });
+const { getModel, getModelFile, frameObject } = initModelLoader({ scene, camera, controls });
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -104,8 +105,8 @@ function setView(json) {
   controls.setStateFromJSON(json);
 }
 
-// lasso area annotation (see annotate.js)
-initAnnotation({
+// lasso area annotation (see annotationEditor.js)
+initAnnotationEditor({
   store,
   applyBgColor,
   scene,
@@ -116,3 +117,6 @@ initAnnotation({
   getView,
   setView,
 });
+
+// static viewer bundle generation (see viewerGenerator.js)
+initViewerGenerator({ getModelFile, getExportData: store.getExportData });
