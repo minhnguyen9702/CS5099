@@ -3,6 +3,16 @@ export function createAnnotationStore() {
   let currentGroupId = null;
   let currentAnnotationId = null;
 
+  // Scene-level state that belongs to the whole document, not to any group.
+  const settings = {
+    homeView: null,
+    outlineColor: '#2563eb',
+    bgColor: '#000000',
+  };
+
+  const getSettings = () => settings;
+  const setSetting = (key, value) => { settings[key] = value; };
+
   const getGroups = () => groups;
   const findGroup = (groupId) => groups.find((g) => g.id === groupId) || null;
   const getCurrentGroup = () => findGroup(currentGroupId);
@@ -129,6 +139,7 @@ export function createAnnotationStore() {
   // Outline records carry the three.js group drawing them; strip it so only
   // the persistable fields are written out.
   const getExportData = () => ({
+    settings: { ...settings },
     groups: groups.map((group) => ({
       ...group,
       annotations: group.annotations.map((annotation) => ({
@@ -139,6 +150,8 @@ export function createAnnotationStore() {
   });
 
   return {
+    getSettings,
+    setSetting,
     getGroups,
     getCurrentGroup,
     setCurrentGroup,

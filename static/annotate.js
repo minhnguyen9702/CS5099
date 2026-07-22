@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { createAnnotationStore } from './annotationStore.js';
 import { initOutlineRenderer, setOutlineColor } from './outlineRenderer.js';
 import { initAnnotationLoader } from './annotationLoader.js';
 import { initAnnotationPanel } from './annotationPanel.js';
@@ -10,7 +9,7 @@ const CLOSE_LOOP_PIXELS = 15;
 const toRecord = (v) => ({ x: v.x, y: v.y, z: v.z });
 const toVectors = (list) => (list || []).map((p) => new THREE.Vector3(p.x, p.y, p.z));
 
-export function initAnnotation({ scene, camera, renderer, controls, getModel, getView, setView }) {
+export function initAnnotation({ store, applyBgColor, scene, camera, renderer, controls, getModel, getView, setView }) {
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
 
@@ -20,10 +19,14 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel, ge
   const outlineColorInput = document.getElementById('outlineColor');
   const hint = document.getElementById('hint');
 
-  setOutlineColor(outlineColorInput.value);
-  outlineColorInput.addEventListener('input', (e) => setOutlineColor(e.target.value));
+  function applyOutlineColor(hex) {
+    outlineColorInput.value = hex;
+    setOutlineColor(hex);
+    store.setSetting('outlineColor', hex);
+  }
+  applyOutlineColor(outlineColorInput.value);
+  outlineColorInput.addEventListener('input', (e) => applyOutlineColor(e.target.value));
 
-  const store = createAnnotationStore();
   const outlines = initOutlineRenderer({ scene, getModel });
 
   let outlining = false;
@@ -201,12 +204,20 @@ export function initAnnotation({ scene, camera, renderer, controls, getModel, ge
     for (const annotation of record.annotations || []) importAnnotation(annotation, group.id);
   }
 
+  function restoreSettings(settings) {
+    if (!settings) return;
+    if (settings.outlineColor) applyOutlineColor(settings.outlineColor);
+    if (settings.bgColor) applyBgColor(settings.bgColor);
+    if (settings.homeView) store.setSetting('homeView', settings.homeView);
+  }
+
   function importAnnotations(data) {
     if (!getModel()) return;
     outlines.updateModelRadius();
     for (const record of data.groups || []) importGroup(record);
     const [first] = store.getGroups();
     if (first && !store.getCurrentGroup()) store.setCurrentGroup(first.id);
+    restoreSettings(data.settings);
     refreshPanel();
   }
 

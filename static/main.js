@@ -3,6 +3,11 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ArcballControls } from 'three/addons/controls/ArcballControls.js';
 import { initModelLoader } from './modelLoader.js';
 import { initAnnotation } from './annotate.js';
+import { createAnnotationStore } from './annotationStore.js';
+
+
+// document-level state shared across modules (see annotationStore.js)
+const store = createAnnotationStore();
 
 
 // renderer
@@ -23,10 +28,15 @@ const camera = new THREE.PerspectiveCamera(
 camera.up.set(0, 1, 0);
 
 
-// background color (driven by the toolbar picker)
+// background color (driven by the toolbar picker, persisted in the store)
 const bgColorInput = document.getElementById('bgColor');
-scene.background = new THREE.Color(bgColorInput.value);
-bgColorInput.addEventListener('input', (e) => scene.background.set(e.target.value));
+function applyBgColor(hex) {
+  bgColorInput.value = hex;
+  scene.background = new THREE.Color(hex);
+  store.setSetting('bgColor', hex);
+}
+applyBgColor(store.getSettings().bgColor);
+bgColorInput.addEventListener('input', (e) => applyBgColor(e.target.value));
 
 
 // lighting
@@ -60,16 +70,16 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
 });
 
-let homeView = null
+const saveHomeView = document.getElementById('save-view');
+const loadHomeView = document.getElementById("load-view");
 
-window.addEventListener('keydown', (e) => {
-  if (e.repeat) return;
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+saveHomeView.addEventListener('click', () => {
+  store.setSetting('homeView', getView());
+});
 
-  if (e.key.toLowerCase() !== 'r') return;
-
-  if (e.shiftKey) homeView = getView()
-  else setView(homeView);
+loadHomeView.addEventListener('click', () => {
+  const { homeView } = store.getSettings();
+  if (homeView) setView(homeView);
 });
 
 function getView() {
@@ -96,6 +106,8 @@ function setView(json) {
 
 // lasso area annotation (see annotate.js)
 initAnnotation({
+  store,
+  applyBgColor,
   scene,
   camera,
   renderer,
