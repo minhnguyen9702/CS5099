@@ -15,6 +15,7 @@ SHARED_MODULES = [
     "outlineRenderer.js",
     "annotationStore.js",
     "annotationPicker.js",
+    "cameraView.js",
 ]
 VIEWER_FILES = [
     "index.html",

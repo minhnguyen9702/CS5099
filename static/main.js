@@ -5,6 +5,7 @@ import { initModelLoader } from './modelLoader.js';
 import { initAnnotationEditor } from './annotationEditor.js';
 import { createAnnotationStore } from './annotationStore.js';
 import { initViewerGenerator } from './viewerGenerator.js';
+import { initCameraView } from './cameraView.js';
 
 
 // document-level state shared across modules (see annotationStore.js)
@@ -71,6 +72,9 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
 });
 
+// saving, restoring and flying to camera views (see cameraView.js)
+const { getView, setView } = initCameraView({ camera, controls });
+
 const saveHomeView = document.getElementById('save-view');
 const loadHomeView = document.getElementById("load-view");
 
@@ -82,28 +86,6 @@ loadHomeView.addEventListener('click', () => {
   const { homeView } = store.getSettings();
   if (homeView) setView(homeView);
 });
-
-function getView() {
-  camera.updateMatrix();
-  controls._gizmos.updateMatrix();
-
-  return JSON.stringify({
-    arcballState: {
-      cameraFar: camera.far,
-      cameraFov: camera.fov,
-      cameraMatrix: camera.matrix,
-      cameraNear: camera.near,
-      cameraUp: camera.up,
-      cameraZoom: camera.zoom,
-      gizmoMatrix: controls._gizmos.matrix,
-      target: controls.target.toArray(),
-    },
-  });
-}
-
-function setView(json) {
-  controls.setStateFromJSON(json);
-}
 
 // lasso area annotation (see annotationEditor.js)
 initAnnotationEditor({

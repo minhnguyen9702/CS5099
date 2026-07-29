@@ -6,6 +6,7 @@ import { initOutlineRenderer, setOutlineColor } from './outlineRenderer.js';
 import { createAnnotationStore } from './annotationStore.js';
 import { initAnnotationPicker } from './annotationPicker.js';
 import { initViewerPanel } from './viewerPanel.js';
+import { initCameraView } from './cameraView.js';
 
 const MODEL_URL = './model.glb';
 const ANNOTATIONS_URL = './annotations.json';
@@ -94,9 +95,8 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
 });
 
-function setView(json) {
-  controls.setStateFromJSON(json);
-}
+// restoring and flying to camera views (see cameraView.js)
+const { setView, applyView } = initCameraView({ camera, controls });
 
 
 // annotations
@@ -104,6 +104,11 @@ const store = createAnnotationStore();
 const outlines = initOutlineRenderer({ scene, getModel });
 
 let panel;
+
+// Which annotation the view cycle is currently walking, and how far into its
+// saved views. Selecting a different annotation restarts the cycle.
+let cycledAnnotationId = null;
+let cycleIndex = 0;
 
 function syncOutlineVisibility() {
   const current = store.getCurrentGroup();
@@ -124,16 +129,37 @@ function refreshPanel() {
 }
 
 function selectGroup(groupId) {
-  if (store.setCurrentGroup(groupId)) refreshPanel();
+  if (store.setCurrentGroup(groupId)) {
+    cycledAnnotationId = null;
+    refreshPanel();
+  }
 }
 
+// Picking an annotation on the model just highlights it, leaving the camera
+// where it is. The next panel click then restarts its view cycle.
 function selectAnnotation(annotationId) {
-  if (store.setCurrent(annotationId)) refreshPanel();
+  if (store.setCurrent(annotationId)) {
+    cycledAnnotationId = null;
+    refreshPanel();
+  }
 }
 
-function showOutline(annotationId, outlineId) {
-  const outline = store.findOutline(annotationId, outlineId);
-  if (outline && outline.view) setView(JSON.stringify(outline.view));
+// Clicking an annotation in the panel focuses it and jumps to the first of its
+// outlines' saved views; clicking it again advances to the next, wrapping.
+function cycleAnnotation(annotationId) {
+  const annotation = store.setCurrent(annotationId);
+  if (!annotation) return;
+
+  const views = annotation.outlines.map((o) => o.view).filter(Boolean);
+  if (annotationId !== cycledAnnotationId) {
+    cycledAnnotationId = annotationId;
+    cycleIndex = 0;
+  } else if (views.length) {
+    cycleIndex = (cycleIndex + 1) % views.length;
+  }
+
+  if (views.length) setView(JSON.stringify(views[cycleIndex]));
+  refreshPanel();
 }
 
 // IMPORT (mirrors the editor's import path, minus the editing hooks)
@@ -178,8 +204,7 @@ async function start() {
     onSelectGroup: selectGroup,
     getAnnotations: store.getVisibleAnnotations,
     getCurrentAnnotation: store.getCurrent,
-    onSelectAnnotation: selectAnnotation,
-    onShowOutline: showOutline,
+    onSelectAnnotation: cycleAnnotation,
   });
 
   initAnnotationPicker({
@@ -204,7 +229,8 @@ async function start() {
   const [first] = store.getGroups();
   if (first) store.setCurrentGroup(first.id);
 
-  if (data.settings && data.settings.homeView) setView(data.settings.homeView);
+  // The home view is where the viewer opens, so it snaps rather than flies.
+  if (data.settings && data.settings.homeView) applyView(data.settings.homeView);
 
   refreshPanel();
 }

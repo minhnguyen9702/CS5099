@@ -120,20 +120,3 @@ canvas {
     font: 13px ui-sans-serif, system-ui, sans-serif;
     white-space: pre-wrap;
 }
-
-#panel .outline-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 3px 6px 3px 16px;
-    color: #ccc;
-}
-
-#panel .outline-view {
-    cursor: pointer;
-}
-
-#panel .outline-view:hover {
-    color: #fff;
-    text-decoration: underline;
-}

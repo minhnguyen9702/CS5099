@@ -9,12 +9,27 @@ export function initViewerGenerator({ getModelFile, getExportData }) {
     await writable.close();
   }
 
+  // Create a fresh subfolder for the bundle rather than writing into the folder
+  // the user picked. An existing folder of the same name is reused only after
+  // the user confirms, so we never silently overwrite one.
+  async function createSubfolder(parent, name) {
+    let exists = false;
+    try {
+      await parent.getDirectoryHandle(name);
+      exists = true;
+    } catch (err) {
+      if (err.name !== 'NotFoundError') throw err;
+    }
+    if (exists && !confirm(`“${name}” already exists here. Overwrite its contents?`)) return null;
+    return parent.getDirectoryHandle(name, { create: true });
+  }
+
   async function writeToFolder(dir, file, annotations) {
     const assets = await fetch('/viewer-assets').then((r) => r.json());
     for (const [name, content] of Object.entries(assets)) await writeFile(dir, name, content);
     await writeFile(dir, 'model.glb', file);
     await writeFile(dir, 'annotations.json', annotations);
-    alert(`Viewer written to “${dir.name}”.`);
+    alert(`Viewer created in “${dir.name}”.`);
   }
 
   async function downloadZip(file, annotations) {
@@ -42,20 +57,29 @@ export function initViewerGenerator({ getModelFile, getExportData }) {
     }
     const annotations = JSON.stringify(getExportData(), null, 2);
 
-    let dir = null;
+    // Pick the parent folder and name the new subfolder before any work starts,
+    // since both can be cancelled.
+    let parent = null;
+    let name = '';
     if (window.showDirectoryPicker) {
       try {
-        dir = await window.showDirectoryPicker({ mode: 'readwrite' });
+        parent = await window.showDirectoryPicker({ mode: 'readwrite' });
       } catch (err) {
         if (err.name !== 'AbortError') console.error('Folder selection failed:', err);
         return;
       }
+      name = (prompt('Name for the new viewer folder:', 'viewer') || '').trim();
+      if (!name) return;
     }
 
     button.disabled = true;
     try {
-      if (dir) await writeToFolder(dir, file, annotations);
-      else await downloadZip(file, annotations);
+      if (parent) {
+        const target = await createSubfolder(parent, name);
+        if (target) await writeToFolder(target, file, annotations);
+      } else {
+        await downloadZip(file, annotations);
+      }
     } catch (err) {
       console.error('Failed to generate viewer:', err);
       alert(`Failed to generate viewer: ${err.message}`);

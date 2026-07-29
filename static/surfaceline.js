@@ -1,20 +1,20 @@
 import * as THREE from 'three';
 
 export function buildTriangleSoup(model) {
-  /* Converts every mesh in a model into a flat array of world-space triangles.
+  /* Convert every mesh into a flat array of world-space triangles.
 
-  returns an array which looks like:
+  Output format:
 
   [
-    x1, y1, z1, x2, y2, z2, x3, y3, z3,   // triangle 1
-    x1, y1, z1, x2, y2, z2, x3, y3, z3,   // triangle 2
+    x1, y1, z1, x2, y2, z2, x3, y3, z3,
+    x1, y1, z1, x2, y2, z2, x3, y3, z3,
     ...
   ]
 
-  By transforming every vertex into world coordinates once,
-  later operations (such as slicing or ray intersections)
-  no longer need to repeatedly multiply vertices by matrixWorld.
+  Vertices are transformed into world space once so later operations
+  don't have to keep applying matrixWorld.
   */
+ 
   const worldTriangles = [];
   const vertex = new THREE.Vector3(); // reusing one Vector3 avoids creating temporary objects.
 
@@ -42,15 +42,13 @@ export function buildTriangleSoup(model) {
 }
 
 export function sliceLineOnSurface(worldTriangles, from, to, viewpoint) {
-  /* Slice the surface between `from` and `to` along the plane through `viewpoint`.
-   Returns a flat array of THREE.Vector3 in LineSegments order: [a0,b0, a1,b1,...].
-  
-   Two filters keep only the piece we want, so no ordering / graph search is
-   needed:
-     * locality   -- skip triangles far from the chord midpoint, which drops the
-                     plane's crossings elsewhere on the mesh (e.g. the back face).
-     * along-chord -- drop crossings that project outside [from, to], so the line
-                   doesn't overshoot past the clicked endpoints.
+  /* Intersect the mesh with the plane defined by the viewpoint and the two
+   clicked points. Returns line segments in THREE.LineSegments format:
+   [a0, b0, a1, b1, ...].
+
+   Two simple filters remove unwanted intersections:
+   - locality: ignore triangles far from the midpoint between the clicks
+   - along-chord: clip anything outside the clicked endpoints
   */
   const plane = new THREE.Plane().setFromCoplanarPoints(viewpoint, from, to);
 

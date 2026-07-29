@@ -1,7 +1,6 @@
 export function initViewerPanel({
   getGroups, getCurrentGroup, onSelectGroup,
   getAnnotations, getCurrentAnnotation, onSelectAnnotation,
-  onShowOutline,
 }) {
   const panel = document.getElementById('panel');
 
@@ -41,7 +40,7 @@ export function initViewerPanel({
 
       const annotationHeader = document.createElement('div');
       annotationHeader.className = 'annotation-head';
-      annotationHeader.title = 'Click to focus this annotation';
+      annotationHeader.title = 'Click to cycle through this annotation’s saved views';
       annotationHeader.addEventListener('click', () => onSelectAnnotation(annotation.id));
 
       const title = document.createElement('span');
@@ -56,20 +55,6 @@ export function initViewerPanel({
         body.textContent = annotation.body;
         annotationElement.append(body);
       }
-
-      annotation.outlines.forEach((outline, outlineIdx) => {
-        const row = document.createElement('div');
-        row.className = 'outline-row';
-        const label = document.createElement('span');
-        label.textContent = `Outline ${outlineIdx + 1}`;
-        if (outline.view) {
-          label.className = 'outline-view';
-          label.title = 'Click to return to the view this outline was drawn from';
-          label.addEventListener('click', () => onShowOutline(annotation.id, outline.id));
-        }
-        row.append(label);
-        annotationElement.append(row);
-      });
 
       panel.append(annotationElement);
     });
