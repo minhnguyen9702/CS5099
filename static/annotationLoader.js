@@ -1,4 +1,4 @@
-// Exporting annotations to a JSON file and importing them back.
+// Module responsible for exporting annotations to a JSON file and importing them back.
 export function initAnnotationLoader({ getExportData, onImport }) {
   const exportButton = document.getElementById('export');
   const importButton = document.getElementById('import');

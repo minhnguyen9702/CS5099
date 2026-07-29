@@ -22,6 +22,8 @@ VIEWER_FILES = [
     "viewer.js",
     "viewerPanel.js",
     "styles.css",
+    "serve.py",
+    "README.md",
 ]
 
 
@@ -39,7 +41,7 @@ def viewer_assets():
 
 @app.route("/generate-zip", methods=["POST"])
 def generate_zip():
-    """fallback for browsers without the file System Access api"""
+    """fallback so that browsers without file system access api can generate viewer"""
     model = request.files.get("model")
     annotations = request.form.get("annotations")
     if model is None or annotations is None:

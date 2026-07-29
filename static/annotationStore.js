@@ -3,8 +3,8 @@ export function createAnnotationStore() {
   let currentGroupId = null;
   let currentAnnotationId = null;
 
-  // Scene-level state that belongs to the whole document, not to any group.
   const settings = {
+    // scene-level state that belongs to the whole document, not to any group.
     homeView: null,
     outlineColor: '#2563eb',
     bgColor: '#000000',

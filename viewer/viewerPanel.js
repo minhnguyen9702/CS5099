@@ -47,15 +47,15 @@ export function initViewerPanel({
       title.className = 'annotation-name';
       title.textContent = annotation.name;
       annotationHeader.append(title);
-      annotationElement.append(annotationHeader);
 
       if (annotation.body) {
         const body = document.createElement('div');
         body.className = 'annotation-body';
         body.textContent = annotation.body;
-        annotationElement.append(body);
+        annotationHeader.append(body);
       }
 
+      annotationElement.append(annotationHeader);
       panel.append(annotationElement);
     });
   }

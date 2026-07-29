@@ -9,9 +9,6 @@ export function initViewerGenerator({ getModelFile, getExportData }) {
     await writable.close();
   }
 
-  // Create a fresh subfolder for the bundle rather than writing into the folder
-  // the user picked. An existing folder of the same name is reused only after
-  // the user confirms, so we never silently overwrite one.
   async function createSubfolder(parent, name) {
     let exists = false;
     try {
@@ -20,7 +17,7 @@ export function initViewerGenerator({ getModelFile, getExportData }) {
     } catch (err) {
       if (err.name !== 'NotFoundError') throw err;
     }
-    if (exists && !confirm(`“${name}” already exists here. Overwrite its contents?`)) return null;
+    if (exists && !confirm(`The folder "${name}" already exists. Replace its contents?`)) return null;
     return parent.getDirectoryHandle(name, { create: true });
   }
 
@@ -29,7 +26,7 @@ export function initViewerGenerator({ getModelFile, getExportData }) {
     for (const [name, content] of Object.entries(assets)) await writeFile(dir, name, content);
     await writeFile(dir, 'model.glb', file);
     await writeFile(dir, 'annotations.json', annotations);
-    alert(`Viewer created in “${dir.name}”.`);
+    alert(`Viewer created in "${dir.name}".`);
   }
 
   async function downloadZip(file, annotations) {
@@ -38,7 +35,7 @@ export function initViewerGenerator({ getModelFile, getExportData }) {
     form.append('annotations', annotations);
 
     const res = await fetch('/generate-zip', { method: 'POST', body: form });
-    if (!res.ok) throw new Error((await res.json()).error || 'Generation failed');
+    if (!res.ok) throw new Error((await res.json()).error || 'Could not create viewer.');
 
     const url = URL.createObjectURL(await res.blob());
     const link = document.createElement('a');
@@ -46,19 +43,17 @@ export function initViewerGenerator({ getModelFile, getExportData }) {
     link.download = 'viewer.zip';
     link.click();
     URL.revokeObjectURL(url);
-    alert('Viewer downloaded as viewer.zip. Unzip it and serve the folder over HTTP to open it.');
+    alert('Viewer downloaded as "viewer.zip". Extract it and serve the folder over HTTP to open it.');
   }
 
   button.addEventListener('click', async () => {
     const file = getModelFile();
     if (!file) {
-      alert('Open a .glb model before generating a viewer.');
+      alert('Open a .glb model before creating a viewer.');
       return;
     }
     const annotations = JSON.stringify(getExportData(), null, 2);
 
-    // Pick the parent folder and name the new subfolder before any work starts,
-    // since both can be cancelled.
     let parent = null;
     let name = '';
     if (window.showDirectoryPicker) {
@@ -68,7 +63,7 @@ export function initViewerGenerator({ getModelFile, getExportData }) {
         if (err.name !== 'AbortError') console.error('Folder selection failed:', err);
         return;
       }
-      name = (prompt('Name for the new viewer folder:', 'viewer') || '').trim();
+      name = (prompt('Folder name:', 'Viewer') || '').trim();
       if (!name) return;
     }
 
@@ -81,8 +76,8 @@ export function initViewerGenerator({ getModelFile, getExportData }) {
         await downloadZip(file, annotations);
       }
     } catch (err) {
-      console.error('Failed to generate viewer:', err);
-      alert(`Failed to generate viewer: ${err.message}`);
+      console.error('Could not create viewer:', err);
+      alert(`Could not create viewer: ${err.message}`);
     } finally {
       button.disabled = false;
     }

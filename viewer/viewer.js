@@ -223,6 +223,14 @@ async function start() {
 
   applySettings(data.settings);
 
+  // The home view is where the viewer opens; the Home button flies back to it.
+  const homeView = data.settings && data.settings.homeView;
+  if (homeView) {
+    const homeButton = document.getElementById('home-button');
+    homeButton.hidden = false;
+    homeButton.addEventListener('click', () => setView(homeView));
+  }
+
   outlines.updateModelRadius();
   for (const record of data.groups || []) importGroup(record);
 

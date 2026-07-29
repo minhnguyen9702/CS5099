@@ -118,8 +118,6 @@ export function initOutlineRenderer({ scene, getModel }) {
   }
 
   function makeFatLine(segs) {
-  // The thick line of a finished outline. LineSegmentsGeometry wants the
-  // segment endpoints flattened, and has no setFromPoints of its own.
     const geometry = new LineSegmentsGeometry();
     if (segs.length) geometry.setPositions(segs.flatMap((p) => [p.x, p.y, p.z]));
 
@@ -130,9 +128,6 @@ export function initOutlineRenderer({ scene, getModel }) {
   }
 
   function commitEditGroup({ group, segments, preview }) {
-  // The thin line drawn while editing is swapped for a thick one. Markers are
-  // re-materialised first because LineSegments2 is itself a Mesh, and would
-  // otherwise be caught by that traverse.
     group.remove(preview, segments);
     preview.geometry.dispose();
 
@@ -149,7 +144,7 @@ export function initOutlineRenderer({ scene, getModel }) {
   }
 
   function buildGroup(pts, nrms) {
-  // A finished outline built in one shot, for imported annotations.
+  // Finished outlines built in one shot. used for imported annotations.
     const group = new THREE.Group();
     group.renderOrder = OUTLINE_RENDER_ORDER;
     for (const p of pts) group.add(makeMarker(p, MARKER_MATERIAL));
