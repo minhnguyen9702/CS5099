@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tests</title>
+    <style>
+        body {
+            font-family: ui-monospace, monospace;
+            margin: 2rem;
+            line-height: 1.5;
+        }
+
+        h1 {
+            font-size: 1.1rem;
+        }
+
+        h2 {
+            font-size: 1rem;
+            margin: 1.5rem 0 0.5rem;
+            color: #555;
+        }
+
+        .case {
+            white-space: pre-wrap;
+        }
+
+        .pass {
+            color: #15803d;
+        }
+
+        .fail {
+            color: #b91c1c;
+        }
+    </style>
+</head>
+
+<body>
+    <h1 id="summary">running...</h1>
+    <div id="results"></div>
+
+    <script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+  }
+}
+</script>
+    <script type="module">
+        import './annotationStore.test.js';
+        import './outlineRenderer.test.js';
+        import { report } from './harness.js';
+
+        report();
+    </script>
+</body>
+
+</html>

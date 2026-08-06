@@ -214,6 +214,7 @@ export function initAnnotationEditor({ store, applyBgColor, scene, camera, rende
   function importAnnotations(data) {
     if (!getModel()) return;
     outlines.updateModelRadius();
+    for (const group of [...store.getGroups()]) deleteGroup(group.id);
     for (const record of data.groups || []) importGroup(record);
     const [first] = store.getGroups();
     if (first && !store.getCurrentGroup()) store.setCurrentGroup(first.id);

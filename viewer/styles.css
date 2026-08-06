@@ -137,4 +137,7 @@ canvas {
     color: #eee;
     font: 13px ui-sans-serif, system-ui, sans-serif;
     white-space: pre-wrap;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    overflow-x: hidden;
 }

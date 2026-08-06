@@ -43,7 +43,7 @@ const MARKER_RENDER_ORDER = 1000;
 
 // Both as a fraction of the model radius.
 const MARKER_SCALE = 0.0005;
-const SURFACE_LIFT = 0.0005;
+const SURFACE_LIFT = 0.0010;
 
 export function initOutlineRenderer({ scene, getModel }) {
   let soup = null;
