@@ -43,7 +43,7 @@ const MARKER_RENDER_ORDER = 1000;
 
 // Both as a fraction of the model radius.
 const MARKER_SCALE = 0.0005;
-const SURFACE_LIFT = 0.0010;
+const SURFACE_LIFT = 0.0015;
 
 export function initOutlineRenderer({ scene, getModel }) {
   let soup = null;
@@ -163,6 +163,7 @@ export function initOutlineRenderer({ scene, getModel }) {
 
   function setGroupSelected(group, selected) {
   // The outlines of the current annotation are drawn thicker than the rest.
+  // group in this case refers to the group of LineSegements2
     group.traverse((o) => {
       if (o.isLineSegments2) o.material = selected ? SELECTED_OUTLINE_MATERIAL : OUTLINE_MATERIAL;
     });

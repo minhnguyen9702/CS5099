@@ -70,11 +70,8 @@ export function sliceLineOnSurface(worldTriangles, from, to, viewpoint) {
   const dirY = (to.y - from.y) / chordLength;
   const dirZ = (to.z - from.z) / chordLength;
 
-  // How far a point projects along the chord, measured from `from`.
-  // 0 == at `from`, chordLength == at `to`.
   const alongChord = (p) => (p.x - from.x) * dirX + (p.y - from.y) * dirY + (p.z - from.z) * dirZ;
 
-  // Squared distance from a point to the chord midpoint (used by the locality test).
   const distSqToMid = (x, y, z) => {
     const dx = x - midX;
     const dy = y - midY;
@@ -109,7 +106,7 @@ export function sliceLineOnSurface(worldTriangles, from, to, viewpoint) {
       continue;
     }
 
-    // Signed distance of each corner to the plane (sign = which side it's on).
+
     const distA =
       normalX * aX +
       normalY * aY +
@@ -139,17 +136,17 @@ export function sliceLineOnSurface(worldTriangles, from, to, viewpoint) {
     const crossings = [];
 
     const addEdgeCrossing = (pX, pY, pZ, qX, qY, qZ, distP, distQ) => {
-      if (distP > 0 === distQ > 0) return;   // both endpoints same side: edge not crossed
-      const frac = distP / (distP - distQ);  // fraction along P->Q where distance hits 0
+      if (distP > 0 === distQ > 0) return;
+      const frac = distP / (distP - distQ);
       crossings.push(new THREE.Vector3(
         pX + frac * (qX - pX),
         pY + frac * (qY - pY),
         pZ + frac * (qZ - pZ),
       ));
     };
-    addEdgeCrossing(aX, aY, aZ, bX, bY, bZ, distA, distB);   // edge A-B
-    addEdgeCrossing(bX, bY, bZ, cX, cY, cZ, distB, distC);   // edge B-C
-    addEdgeCrossing(cX, cY, cZ, aX, aY, aZ, distC, distA);   // edge C-A
+    addEdgeCrossing(aX, aY, aZ, bX, bY, bZ, distA, distB);
+    addEdgeCrossing(bX, bY, bZ, cX, cY, cZ, distB, distC);
+    addEdgeCrossing(cX, cY, cZ, aX, aY, aZ, distC, distA);
     if (crossings.length !== 2) continue;
 
     // Along-chord clip: trim the crossing segment to the slab [0, chordLength],
@@ -157,16 +154,14 @@ export function sliceLineOnSurface(worldTriangles, from, to, viewpoint) {
     const along0 = alongChord(crossings[0]);
     const along1 = alongChord(crossings[1]);
 
-    let keepStart = 0, keepEnd = 1;   // fractions (0..1) of the crossing segment to keep
+    let keepStart = 0, keepEnd = 1;
     if (along0 !== along1) {
-      // Fractions where the segment reaches along == 0 and along == chordLength.
       const fracAtStart = (0 - along0) / (along1 - along0);
       const fracAtEnd = (chordLength - along0) / (along1 - along0);
       keepStart = Math.max(0, Math.min(fracAtStart, fracAtEnd));
       keepEnd = Math.min(1, Math.max(fracAtStart, fracAtEnd));
-      if (keepStart >= keepEnd) continue;   // segment lies entirely outside the slab
+      if (keepStart >= keepEnd) continue;
     } else if (along0 < 0 || along0 > chordLength) {
-      // Segment is perpendicular to the chord and sits outside the slab.
       continue;
     }
 

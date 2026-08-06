@@ -223,7 +223,7 @@ async function start() {
 
   applySettings(data.settings);
 
-  // The home view is where the viewer opens; the Home button flies back to it.
+  // The home view is where the viewer opens;
   const homeView = data.settings && data.settings.homeView;
   if (homeView) {
     const homeButton = document.getElementById('home-button');
