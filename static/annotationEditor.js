@@ -193,8 +193,6 @@ export function initAnnotationEditor({ store, applyBgColor, scene, camera, rende
 
   function importAnnotation(record, groupId) {
     const built = (record.outlines || []).filter(isDrawable).map(buildOutline);
-    if (!built.length) return;
-
     const annotation = store.create({ id: record.id, name: record.name, body: record.body, groupId });
     for (const outline of built) store.addOutline(annotation.id, outline);
   }

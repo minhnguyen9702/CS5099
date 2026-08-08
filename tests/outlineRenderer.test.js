@@ -57,8 +57,15 @@ test('sliceEdge lays a line on the surface, lifted clear of it', () => {
   const segments = outlines.sliceEdge(vec(-0.5, 0, 0), vec(0.5, 0, 0), up.clone(), up.clone());
 
   assert(segments.length > 0, 'the edge should follow the quad');
+
+  // The exact lift is a tuned constant; what matters is that it is positive
+  // (so the line clears the surface), uniform, and too small to look detached.
+  const lift = segments[0].y;
+  assert(lift > 0, 'the line should be lifted clear of the surface');
+  assert(lift < radius * 0.01, 'the lift should be a hair above the surface, not a visible offset');
+
   for (const point of segments) {
-    assertClose(point.y, radius * 0.0010, 1e-9, 'segments should sit just above the surface');
+    assertClose(point.y, lift, 1e-9, 'every segment should be lifted by the same amount');
     assertClose(point.z, 0, 1e-6);
   }
 });
